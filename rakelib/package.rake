@@ -64,12 +64,23 @@
 #  Note also that the binary executables will be lazily downloaded when needed, but you can
 #  explicitly download them with the `rake download` command.
 #
+HOTFIXED_PLATFORMS = %w[
+  x86_64-linux-gnu
+  x86_64-linux-musl
+  aarch64-linux-gnu
+  aarch64-linux-musl
+]
+
 require "rubygems/package_task"
 require "open-uri"
 require_relative "../lib/tailwindcss/ruby/upstream"
 
 def tailwindcss_download_url(filename)
   "https://github.com/tailwindlabs/tailwindcss/releases/download/#{Tailwindcss::Ruby::Upstream::VERSION}/#{filename}"
+end
+
+def tailwindcss_hotfixed_download_url(filename)
+  "https://assets.tailwindcss.com/#{filename}"
 end
 
 TAILWINDCSS_RUBY_GEMSPEC = Bundler.load_gemspec("tailwindcss-ruby.gemspec")
@@ -99,7 +110,11 @@ Tailwindcss::Ruby::Upstream::NATIVE_PLATFORMS.each do |platform, filename|
 
     directory exedir
     file exepath => [exedir] do
-      release_url = tailwindcss_download_url(filename)
+      release_url = if HOTFIXED_PLATFORMS.include?(platform)
+        tailwindcss_hotfixed_download_url(filename)
+      else
+        tailwindcss_download_url(filename)
+      end
       warn "Downloading #{exepath} from #{release_url} ..."
 
       # lazy, but fine for now.
@@ -129,6 +144,7 @@ task "check" => exepaths do
   end.to_h
 
   Tailwindcss::Ruby::Upstream::NATIVE_PLATFORMS.each do |platform, filename|
+    next if HOTFIXED_PLATFORMS.include?(platform)
     exedir = File.join(gemspec.bindir, platform) # "exe/x86_64-linux"
     exepath = File.join(exedir, "tailwindcss") # "exe/x86_64-linux/tailwindcss"
 
